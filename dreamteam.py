@@ -111,10 +111,12 @@ class Team:
 
 def add_players_to_team(player_pool, team, min_credits_required_after_filling_a_category):
 	do_not_add_players_from = None # If set to a team, players from that team won't be added
-	for category in CATEGORIES:
+	c = 0
+	while c < len(CATEGORIES):
+		category = CATEGORIES[c]
 		category_full = False
 		i = 0
-		last_added_player_indices
+		added_player_indices = []
 		while i < len(player_pool.role[category]):
 			player = player_pool.role[category][i]
 			i += 1			
@@ -122,6 +124,7 @@ def add_players_to_team(player_pool, team, min_credits_required_after_filling_a_
 				continue
 			player_added, reason = team.add_player(player)
 			if player_added:
+				added_player_indices.append(i)
 				if reason == Team.TEAM_COMPLETE:
 					yield team.get_team()
 			else:
@@ -135,7 +138,13 @@ def add_players_to_team(player_pool, team, min_credits_required_after_filling_a_
 				elif reason == Team.NOT_ENOUGH_CREDITS:
 					if i == len(player_pool.role[category]): # No player can be fit into the team with the credits remaining, start removing players
 		if category_full:
-			continue
+			if team.credits_remaining < min_credits_required_after_filling_a_category[category]:
+				team.remove_players(n = 1)
+				last_added_player = added_player_indices[-1]
+				del added_player_indices[-1]
+				i = last_added_player + 1
+			else:
+				continue
 
 
 def build_teams(player_pool, combination):
