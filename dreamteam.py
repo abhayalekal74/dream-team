@@ -1,17 +1,17 @@
 from pprint import PrettyPrinter
-from itertools import combinations
+import itertools
 
 pp = PrettyPrinter(indent = 4)
 
 TEAM_A = 'SRH'
 TEAM_B = 'RR'
 MAX_CREDITS = 100.0
-CATEGORIES = ["WK", "BAT", "AR", "BOWL"]
+ROLES = ["WK", "BAT", "AR", "BOWL"]
 
 
 class Pool:
 	def __init__(self):
-		self.roles = dict(zip(CATEGORIES, [[], [], [], []]))
+		self.roles = dict(zip(ROLES, [[], [], [], []]))
 		self.teams = {TEAM_A: list(), TEAM_B: list()}
 
 	
@@ -57,107 +57,98 @@ class Team:
 
 
 	def __init__(self, combination):
-		self.players = list()
 		self.combination = combination
 		self.points = 0.0
 		self.players_count = 0
 		self.counts = {TEAM_A: 0, TEAM_B: 0}
 		self.credits_remaining = MAX_CREDITS 
-		self.roles = dict(zip(CATEGORIES, [[], [], [], []])) 
+		self.roles = dict(zip(ROLES, [[], [], [], []])) 
+
+
+	def is_role_full(self, role):
+		return len(self.roles[role]) >= self.combination[role]
+
+
+	def is_team_complete(self):
+		return self.players_count == 11 
+
+	def show(self):
+		for role in self.roles.keys():
+			print (role)
+			for player in self.roles[role]:
+				print (player)
 
 
 	def add_player(self, player):
-		if len(self.players) >= 11:
-			return False, TEAM_COMPLETE
+		if self.players_count >= 11:
+			return False, self.TEAM_COMPLETE
 		elif len(self.roles[player.role]) >= self.combination[player.role]:
-			return False, ROLE_FULL
+			return False, self.ROLE_FULL
 		elif self.counts[player.team] >= 7:
-			return False, MAX_PLAYERS_FROM_TEAM
+			return False, self.MAX_PLAYERS_FROM_TEAM
 		elif player.credits > self.credits_remaining:
-			return False, NOT_ENOUGH_CREDITS
+			return False, self.NOT_ENOUGH_CREDITS
 		else:
-			self.players.append(player)
 			self.roles[player.role].append(player)
 			self.players_count += 1
 			self.counts[player.team] += 1
 			self.credits_remaining -= player.credits
 			self.points += player.points
-			if len(self.players) == 11:
-				return True, TEAM_COMPLETE
-			else:
-				return True, PLAYER_ADDED
+			return True, self.PLAYER_ADDED
 
 
-	def is_category_full(self, category):
-		return len(self.roles[category]) >= self.combination[category]
+	def remove_players_with_role(self, role):
+		players_with_this_role = self.roles[role]
+		if players_with_this_role:
+			for player in players_with_this_role:
+				self.counts[player.team] -= 1
+				self.players_count -= 1
+				self.credits_remaining += player.credits
+				self.points -= player.points
+			self.roles[role].clear()
 
 
-	def is_team_complete(self):
-		return len(self.players) == 11 
+	def add_players_for_role(self, role, players, min_credits_required_after_filling_a_role):
+		self.remove_players_with_role(role)
+		meets_constrainsts = True
+		for player in players:
+			added, reason = self.add_player(player)
+			if not added:
+				meets_constrainsts = False
+				break
+		if not meets_constrainsts:
+			self.remove_players_with_role(role)
+			return False	
+		return True
 
 
-	def get_team(self):
-		return self.players
-
-	def remove_players(self, n = 1, category = None):
-		if category:
-			for i in range(len(self.players) - 1, -1, -1):
-				player = self.players[i]
-				if player.role == category:
-					del self.players[i]
-		else:
-			for i in range(len(self.players) - 1, max(len(self.players) - n - 2, 0), -1):
-				del self.players[i]
-			
-
-def add_players_to_team(player_pool, team, min_credits_required_after_filling_a_category):
-	do_not_add_players_from = None # If set to a team, players from that team won't be added
-	c = 0
-	while c < len(CATEGORIES):
-		category = CATEGORIES[c]
-		category_full = False
-		i = 0
-		added_player_indices_teamwise = {team_A: list(), team_B: list()}
-		added_player_indices = list()
-		while i < len(player_pool.role[category]):
-			player = player_pool.role[category][i]
-			i += 1			
-			if player.team == do_not_add_players_from:
-				continue
-			player_added, reason = team.add_player(player)
-			if player_added:
-				added_player_indices_teamwise[player.team].append(i)
-				added_player_indices.append(i)
-				if reason == Team.TEAM_COMPLETE:
-					yield team.get_team()
-			else:
-				if reason == Team.TEAM_COMPLETE:
-					yield team.get_team()
-				elif reason == Team.ROLE_FULL:
-					if team.credits_remaining < min_credits_required_after_filling_a_category[category]:
-						team.remove_players(n = 1)
-						last_added_player = added_player_indices[-1]
-						del added_player_indices[-1]
-						del added_player_indices_teamwise[player.team][-1]
-						i = last_added_player + 1
-					break
-				elif reason == Team.MAX_PLAYERS_FROM_TEAM:
-					do_not_add_players_from = player.team
-				elif reason == Team.NOT_ENOUGH_CREDITS:
-					if i == len(player_pool.role[category]): # No player can be fit into the team with the credits remaining, start removing players
-
+def add_players_to_team(player_pool, combination, min_credits_required_after_filling_a_role):
+	player_combinations = dict() 
+	for key in combination.keys():
+		player_combinations[key] = list(set(itertools.combinations(player_pool.roles[key], combination[key])))
+	teams_for_this_combination = list()
+	team = Team(combination)
+	for i in player_combinations[ROLES[0]]:
+		team.add_players_for_role(ROLES[0], i, min_credits_required_after_filling_a_role)
+		for j in player_combinations[ROLES[1]]:
+			team.add_players_for_role(ROLES[1], j, min_credits_required_after_filling_a_role)
+			for k in player_combinations[ROLES[2]]:
+				team.add_players_for_role(ROLES[2], k, min_credits_required_after_filling_a_role)
+				for l in player_combinations[ROLES[3]]:
+					if team.add_players_for_role(ROLES[3], l, min_credits_required_after_filling_a_role):
+						teams_for_this_combination.append(team)
+	return teams_for_this_combination
+	
 
 def build_teams(player_pool, combination):
-	lowest_credits_per_category_for_this_combination = dict()
-	for category in CATEGORIES:
-		lowest_credits_per_category_for_this_combination[category] = sum([player.credits for player in player_pool.roles[category][-1 * combination[category]: ]])
-	min_credits_required_after_filling_a_category = dict()
-	for i in range(len(CATEGORIES) - 1):
-		cur_category = CATEGORIES[i]
-		min_credits_required_after_filling_a_category[cur_category] = sum([lowest_credits_per_category_for_this_combination[category] for category in CATEGORIES[i + 1: ]])
-	
-	team = Team(combination)
-	return add_players_to_team(player_pool, team, min_credits_required_after_filling_a_category)
+	lowest_credits_per_role_for_this_combination = dict()
+	for role in ROLES:
+		lowest_credits_per_role_for_this_combination[role] = sum([player.credits for player in player_pool.roles[role][-1 * combination[role]: ]])
+	min_credits_required_after_filling_a_role = dict()
+	for i in range(len(ROLES) - 1):
+		cur_role = ROLES[i]
+		min_credits_required_after_filling_a_role[cur_role] = sum([lowest_credits_per_role_for_this_combination[role] for role in ROLES[i + 1: ]])
+	return add_players_to_team(player_pool, combination, min_credits_required_after_filling_a_role)
 
 
 if __name__=='__main__':
@@ -169,7 +160,7 @@ if __name__=='__main__':
 			player_pool.add_player(Player(*player_stats.split(',')))
 
 	player_pool.organize()
-	player_pool.show()
+	#player_pool.show()
 				
 	all_combinations = 	[
 							[1, 3, 2, 5],
@@ -183,10 +174,15 @@ if __name__=='__main__':
 
 	all_teams = list()	
 	for combination in all_combinations:
-		mapped_combination = dict(zip(CATEGORIES, combination))
-		all_teams.append(build_teams(player_pool, mapped_combination))
+		mapped_combination = dict(zip(ROLES, combination))
+		all_teams += build_teams(player_pool, mapped_combination)
 
-	
+	all_teams.sort(key = lambda x: x.points, reverse = True)
+
+	for team in all_teams:
+		print("\n\n")
+		print ("Team points: {}".format(team.points))
+		team.show()
 
 
 
