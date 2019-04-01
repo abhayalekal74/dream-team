@@ -1,4 +1,5 @@
 from pprint import PrettyPrinter
+from itertools import combinations
 
 pp = PrettyPrinter(indent = 4)
 
@@ -116,7 +117,8 @@ def add_players_to_team(player_pool, team, min_credits_required_after_filling_a_
 		category = CATEGORIES[c]
 		category_full = False
 		i = 0
-		added_player_indices = []
+		added_player_indices_teamwise = {team_A: list(), team_B: list()}
+		added_player_indices = list()
 		while i < len(player_pool.role[category]):
 			player = player_pool.role[category][i]
 			i += 1			
@@ -124,6 +126,7 @@ def add_players_to_team(player_pool, team, min_credits_required_after_filling_a_
 				continue
 			player_added, reason = team.add_player(player)
 			if player_added:
+				added_player_indices_teamwise[player.team].append(i)
 				added_player_indices.append(i)
 				if reason == Team.TEAM_COMPLETE:
 					yield team.get_team()
@@ -131,20 +134,17 @@ def add_players_to_team(player_pool, team, min_credits_required_after_filling_a_
 				if reason == Team.TEAM_COMPLETE:
 					yield team.get_team()
 				elif reason == Team.ROLE_FULL:
-					category_full = True
+					if team.credits_remaining < min_credits_required_after_filling_a_category[category]:
+						team.remove_players(n = 1)
+						last_added_player = added_player_indices[-1]
+						del added_player_indices[-1]
+						del added_player_indices_teamwise[player.team][-1]
+						i = last_added_player + 1
 					break
 				elif reason == Team.MAX_PLAYERS_FROM_TEAM:
 					do_not_add_players_from = player.team
 				elif reason == Team.NOT_ENOUGH_CREDITS:
 					if i == len(player_pool.role[category]): # No player can be fit into the team with the credits remaining, start removing players
-		if category_full:
-			if team.credits_remaining < min_credits_required_after_filling_a_category[category]:
-				team.remove_players(n = 1)
-				last_added_player = added_player_indices[-1]
-				del added_player_indices[-1]
-				i = last_added_player + 1
-			else:
-				continue
 
 
 def build_teams(player_pool, combination):
