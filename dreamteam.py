@@ -3,10 +3,13 @@ import itertools
 
 pp = PrettyPrinter(indent = 4)
 
-TEAM_A = 'SRH'
-TEAM_B = 'RR'
+TEAM_A = ''
+TEAM_B = ''
 MAX_CREDITS = 100.0
 ROLES = ["WK", "BAT", "AR", "BOWL"]
+
+team_id = 0
+teams_map = dict()
 
 
 class Pool:
@@ -65,18 +68,28 @@ class Team:
 		self.roles = dict(zip(ROLES, [[], [], [], []])) 
 
 
-	def is_role_full(self, role):
-		return len(self.roles[role]) >= self.combination[role]
+	def are_roles_full(self):
+		for role in ROLES:
+			if len(self.roles[role]) < self.combination[role]:
+				return False
+		return True
 
 
 	def is_team_complete(self):
 		return self.players_count == 11 
 
-	def show(self):
+
+	def get_team(self):
+		team_repr = list()
+		team_repr.append(self.points)
+		team_repr.append(self.credits_remaining)
+		data = ""
 		for role in self.roles.keys():
-			print (role)
+			data += role + "\n"
 			for player in self.roles[role]:
-				print (player)
+				data += player.__str__() + "\n"
+		team_repr.append(data)
+		return team_repr
 
 
 	def add_player(self, player):
@@ -116,10 +129,15 @@ class Team:
 			if not added:
 				meets_constrainsts = False
 				break
-		if not meets_constrainsts:
+		if not meets_constrainsts or self.credits_remaining < min_credits_required_after_filling_a_role[role]:
 			self.remove_players_with_role(role)
 			return False	
 		return True
+
+
+def save_team(team):
+	global teams_map, team_id, player_team
+	teams_map[team_id] = team
 
 
 def add_players_to_team(player_pool, combination, min_credits_required_after_filling_a_role):
@@ -135,12 +153,14 @@ def add_players_to_team(player_pool, combination, min_credits_required_after_fil
 			for k in player_combinations[ROLES[2]]:
 				team.add_players_for_role(ROLES[2], k, min_credits_required_after_filling_a_role)
 				for l in player_combinations[ROLES[3]]:
-					if team.add_players_for_role(ROLES[3], l, min_credits_required_after_filling_a_role):
-						teams_for_this_combination.append(team)
+					added = team.add_players_for_role(ROLES[3], l, min_credits_required_after_filling_a_role)
+					if added and team.is_team_complete() and team.are_roles_full():
+						teams_for_this_combination.append(team.get_team())
 	return teams_for_this_combination
 	
 
 def build_teams(player_pool, combination):
+	print ("Building teams for combination", combination)
 	lowest_credits_per_role_for_this_combination = dict()
 	for role in ROLES:
 		lowest_credits_per_role_for_this_combination[role] = sum([player.credits for player in player_pool.roles[role][-1 * combination[role]: ]])
@@ -148,14 +168,28 @@ def build_teams(player_pool, combination):
 	for i in range(len(ROLES) - 1):
 		cur_role = ROLES[i]
 		min_credits_required_after_filling_a_role[cur_role] = sum([lowest_credits_per_role_for_this_combination[role] for role in ROLES[i + 1: ]])
+	min_credits_required_after_filling_a_role[ROLES[3]] = 0
 	return add_players_to_team(player_pool, combination, min_credits_required_after_filling_a_role)
+
+
+def print_top_teams(criterion, top_teams):
+	print ("\n\n", criterion)
+	for team in top_teams: 
+		print("\n\n")
+		print ("Team points: {}, Credits remaining: {}".format(team[0], team[1]))
+		print (team[2])
+	
 
 
 if __name__=='__main__':
 	import sys
 
+	global TEAM_A, TEAM_B
+	fixture = sys.argv[1]
+	TEAM_A, TEAM_B = fixture.split('v')
+
 	player_pool = Pool()
-	with open(sys.argv[1], 'r') as players_stats:
+	with open(fixture, 'r') as players_stats:
 		for player_stats in players_stats.readlines():
 			player_pool.add_player(Player(*player_stats.split(',')))
 
@@ -177,13 +211,8 @@ if __name__=='__main__':
 		mapped_combination = dict(zip(ROLES, combination))
 		all_teams += build_teams(player_pool, mapped_combination)
 
-	all_teams.sort(key = lambda x: x.points, reverse = True)
-
-	for team in all_teams:
-		print("\n\n")
-		print ("Team points: {}".format(team.points))
-		team.show()
-
-
-
+	all_teams.sort(key = lambda x: x[0], reverse = True)
+	print_top_teams("Most points", all_teams[:5])
+	all_teams.sort(key = lambda x: x[1], reverse = False)
+	print_top_teams("Credits maximized", all_teams[:5])
 
