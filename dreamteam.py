@@ -1,4 +1,6 @@
 from pprint import PrettyPrinter
+import sys
+from operator import itemgetter 
 import itertools
 
 pp = PrettyPrinter(indent = 4)
@@ -6,10 +8,12 @@ pp = PrettyPrinter(indent = 4)
 TEAM_A = ''
 TEAM_B = ''
 MAX_CREDITS = 100.0
+N_TOP_TEAMS = 5
 ROLES = ["WK", "BAT", "AR", "BOWL"]
 
 team_id = 0
 teams_map = dict()
+player_teams_map = dict()
 
 
 class Pool:
@@ -136,8 +140,18 @@ class Team:
 
 
 def save_team(team):
-	global teams_map, team_id, player_team
-	teams_map[team_id] = team
+	global teams_map, team_id, player_teams_map
+	team_id += 1
+	teams_map[team_id] = team.get_team()
+	for role, players in team.roles.items():
+		for player in players:
+			try:
+				teams_with_this_player = player_teams_map[player.name]
+			except KeyError:
+				teams_with_this_player = list()
+				player_teams_map[player.name] = teams_with_this_player
+			teams_with_this_player.append(team_id)
+	return team_id
 
 
 def add_players_to_team(player_pool, combination, min_credits_required_after_filling_a_role):
@@ -155,7 +169,7 @@ def add_players_to_team(player_pool, combination, min_credits_required_after_fil
 				for l in player_combinations[ROLES[3]]:
 					added = team.add_players_for_role(ROLES[3], l, min_credits_required_after_filling_a_role)
 					if added and team.is_team_complete() and team.are_roles_full():
-						teams_for_this_combination.append(team.get_team())
+						teams_for_this_combination.append(save_team(team))
 	return teams_for_this_combination
 	
 
@@ -178,15 +192,17 @@ def print_top_teams(criterion, top_teams):
 		print("\n\n")
 		print ("Team points: {}, Credits remaining: {}".format(team[0], team[1]))
 		print (team[2])
-	
+
+
+def print_top_teams_from_map(criterion, sort_key, reverse = False):
+	top_teams = [i[1] for i in sorted(teams_map.items(), key = lambda x: x[1][sort_key], reverse = reverse)[:N_TOP_TEAMS]]
+	print_top_teams(criterion, top_teams)
 
 
 if __name__=='__main__':
-	import sys
-
-	global TEAM_A, TEAM_B
 	fixture = sys.argv[1]
 	TEAM_A, TEAM_B = fixture.split('v')
+	print (TEAM_A, TEAM_B)
 
 	player_pool = Pool()
 	with open(fixture, 'r') as players_stats:
@@ -211,8 +227,6 @@ if __name__=='__main__':
 		mapped_combination = dict(zip(ROLES, combination))
 		all_teams += build_teams(player_pool, mapped_combination)
 
-	all_teams.sort(key = lambda x: x[0], reverse = True)
-	print_top_teams("Most points", all_teams[:5])
-	all_teams.sort(key = lambda x: x[1], reverse = False)
-	print_top_teams("Credits maximized", all_teams[:5])
+	print_top_teams_from_map("Most points", 0, reverse = True)
+	print_top_teams_from_map("Credits maximized", 1)
 
