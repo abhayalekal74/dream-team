@@ -184,7 +184,6 @@ def print_top_teams(criterion, top_teams):
 if __name__=='__main__':
 	import sys
 
-	global TEAM_A, TEAM_B
 	fixture = sys.argv[1]
 	TEAM_A, TEAM_B = fixture.split('v')
 
