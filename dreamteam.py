@@ -195,14 +195,15 @@ def print_top_teams(criterion, top_teams):
 
 
 def print_top_teams_from_map(criterion, sort_key, reverse = False):
+	print (len(teams_map))
 	top_teams = [i[1] for i in sorted(teams_map.items(), key = lambda x: x[1][sort_key], reverse = reverse)[:N_TOP_TEAMS]]
 	print_top_teams(criterion, top_teams)
 
 
 if __name__=='__main__':
 	fixture = sys.argv[1]
+	mandatory_players = [player.strip() for player in sys.argv[2].split(',')] if len(sys.argv) > 2 else None
 	TEAM_A, TEAM_B = fixture.split('v')
-	print (TEAM_A, TEAM_B)
 
 	player_pool = Pool()
 	with open(fixture, 'r') as players_stats:
@@ -230,3 +231,17 @@ if __name__=='__main__':
 	print_top_teams_from_map("Most points", 0, reverse = True)
 	print_top_teams_from_map("Credits maximized", 1)
 
+	if mandatory_players:
+		teams_with_mandatory_players = list()
+		for player in mandatory_players:
+			try:
+				teams_with_mandatory_players.append(player_teams_map[player])
+			except KeyError:
+				pass
+		common_teams = [team_map[id] for id in set(teams_with_mandatory_players[0]).intersection(*teams_with_mandatory_players)]
+		if common_teams:
+			common_teams.sort(key = lambda x: x[0], reverse = True)
+			print_top_teams("Most points including {}".format(", ".join(mandatory_players)), common_teams[:N_TOP_TEAMS])	
+			common_teams.sort(key = lambda x: x[1], reverse = False)
+			print_top_teams("Credits maximized including {}".format(", ".join(mandatory_players)), common_teams[:N_TOP_TEAMS])	
+			
