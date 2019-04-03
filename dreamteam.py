@@ -89,11 +89,12 @@ class Team:
 		team_repr.append(self.credits_remaining)
 		data = ""
 		for role in self.roles.keys():
-			data += " " + role + ": "
+			data += role + ": "
 			player_names = list()
 			for player in self.roles[role]:
 				player_names.append(player.name)
 			data += ", ".join(player_names)
+			data += "\n"
 		team_repr.append(data)
 		return team_repr
 
@@ -195,8 +196,13 @@ def print_top_teams(criterion, top_teams):
 		print (team[2])
 
 
-def print_top_teams_from_map(criterion, sort_key, reverse = False):
-	top_teams = [i[1] for i in sorted(teams_map.items(), key = lambda x: x[1][sort_key], reverse = reverse)[:N_TOP_TEAMS]]
+def print_top_teams_from_map(criterion, sort_key, reverse = False, secondary_index = -1, reverse_secondary_index = False):
+	if secondary_index == -1:
+		top_teams = [i[1] for i in sorted(teams_map.items(), key = lambda x: x[1][sort_key], reverse = reverse)[:N_TOP_TEAMS]]
+	else:
+		top_teams = [i[1] for i in sorted(teams_map.items(), key = lambda x: x[1][sort_key], reverse = reverse)]
+		top_teams.sort(key = lambda x: x[secondary_index], reverse = reverse_secondary_index)
+		top_teams = top_teams[:N_TOP_TEAMS]
 	print_top_teams(criterion, top_teams)
 
 
@@ -231,7 +237,7 @@ if __name__=='__main__':
 	print ("\nTotal teams", len(teams_map))
 
 	print_top_teams_from_map("Most points", 0, reverse = True)
-	print_top_teams_from_map("Credits maximized", 1)
+	print_top_teams_from_map("Credits maximized", 1, secondary_index = 0, reverse_secondary_index = True)
 
 	if mandatory_players:
 		teams_with_mandatory_players = list()
