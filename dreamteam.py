@@ -209,7 +209,7 @@ def print_top_teams_from_map(criterion, sort_key, reverse = False, secondary_ind
 if __name__=='__main__':
 	fixture = sys.argv[1]
 	mandatory_players = [player.strip() for player in sys.argv[2].split(',')] if len(sys.argv) > 2 else None
-	TEAM_A, TEAM_B = fixture.split('v')
+	TEAM_A, TEAM_B = fixture.split('/')[-1].split('v')
 
 	player_pool = Pool()
 	with open(fixture, 'r') as players_stats:
